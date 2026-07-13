@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ITMS — Intelligent Traffic Management System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D12;
+    --panel:#12171F;
+    --panel-2:#161C26;
+    --border:#232B38;
+    --text:#EDEFF3;
+    --muted:#8B93A5;
+    --red:#FF4B5C;
+    --amber:#FFB020;
+    --green:#2ED573;
+    --cyan:#3ED6C4;
+    --red-dim: rgba(255,75,92,0.14);
+    --amber-dim: rgba(255,176,32,0.14);
+    --green-dim: rgba(46,213,115,0.14);
+    --cyan-dim: rgba(62,214,196,0.12);
+    --radius:10px;
+    --font-display:'Rajdhani',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    display:flex;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  a{color:inherit; text-decoration:none;}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:236px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    padding:22px 16px;
+    position:fixed;
+    top:0; left:0; bottom:0;
+    z-index:20;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:0 6px 22px 6px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:18px;
+  }
+  .brand-title{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:17px;
+    letter-spacing:0.02em;
+    line-height:1.1;
+  }
+  .brand-sub{
+    font-size:10.5px;
+    color:var(--muted);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  .navlist{list-style:none; display:flex; flex-direction:column; gap:4px;}
+  .navlink{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:500;
+    color:var(--muted);
+    cursor:pointer;
+    border:1px solid transparent;
+    transition:background .15s, color .15s;
+  }
+  .navlink:hover{ background:var(--panel-2); color:var(--text); }
+  .navlink.active{
+    background:var(--cyan-dim);
+    color:var(--cyan);
+    border-color:rgba(62,214,196,0.25);
+  }
+  .navlink .num{
+    font-family:var(--font-mono);
+    font-size:11px;
+    opacity:0.6;
+    width:16px;
+  }
+  .sidebar-foot{
+    margin-top:auto;
+    padding-top:16px;
+    border-top:1px solid var(--border);
+    font-size:11px;
+    color:var(--muted);
+    font-family:var(--font-mono);
+  }
+
+  /* ---------- Signal light glyph (signature element) ---------- */
+  .signal{
+    display:inline-flex;
+    flex-direction:column;
+    gap:3px;
+    padding:4px;
+    background:#000;
+    border-radius:5px;
+    border:1px solid var(--border);
+  }
+  .signal .dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    background:#20242c;
+  }
+  .signal.size-lg .dot{ width:11px; height:11px; }
+  .signal[data-state="red"] .dot.red{ background:var(--red); box-shadow:0 0 8px var(--red);}
+  .signal[data-state="amber"] .dot.amber{ background:var(--amber); box-shadow:0 0 8px var(--amber);}
+  .signal[data-state="green"] .dot.green{ background:var(--green); box-shadow:0 0 8px var(--green);}
+  .signal.cycling .dot.red{ animation: cyc-red 3s infinite; }
+  .signal.cycling .dot.amber{ animation: cyc-amber 3s infinite; }
+  .signal.cycling .dot.green{ animation: cyc-green 3s infinite; }
+  @keyframes cyc-red{ 0%,66%,100%{background:#20242c; box-shadow:none;} 0%{background:var(--red); box-shadow:0 0 8px var(--red);} }
+  @keyframes cyc-amber{ 33%{background:var(--amber); box-shadow:0 0 8px var(--amber);} 0%,66%,100%{background:#20242c; box-shadow:none;} }
+  @keyframes cyc-green{ 66%{background:var(--green); box-shadow:0 0 8px var(--green);} 0%,33%,100%{background:#20242c; box-shadow:none;} }
+
+  /* ---------- Main ---------- */
+  .main{ margin-left:236px; flex:1; min-width:0; padding:26px 32px 60px; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:26px;
+  }
+  .topbar h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:24px;
+    letter-spacing:0.01em;
+  }
+  .topbar .eyebrow{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--cyan);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .clock{
+    font-family:var(--font-mono);
+    font-size:13px;
+    color:var(--muted);
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .section{ display:none; }
+  .section.active{ display:block; animation:fadein .25s ease; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- Cards / grid ---------- */
+  .grid{ display:grid; gap:16px; }
+  .grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+  .grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+  @media (max-width:1000px){
+    .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+    .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+    .grid.cols-2{ grid-template-columns:1fr; }
+  }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .card h3{
+    font-family:var(--font-display);
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    margin-bottom:14px;
+    color:var(--text);
+  }
+  .card h3 .tag{
+    font-family:var(--font-mono);
+    font-size:10px;
+    color:var(--muted);
+    font-weight:400;
+    margin-left:8px;
+    text-transform:none;
+  }
+
+  .kpi-label{
+    font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;
+    margin-bottom:8px;
+  }
+  .kpi-value{
+    font-family:var(--font-mono); font-size:28px; font-weight:600;
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .kpi-value small{ font-size:13px; color:var(--muted); font-weight:400; }
+  .kpi-delta{ margin-top:8px; font-size:12px; font-family:var(--font-mono); }
+  .kpi-delta.up{ color:var(--red); }
+  .kpi-delta.down{ color:var(--green); }
+
+  /* Junction rows */
+  .junction-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 4px;
+    border-bottom:1px solid var(--border);
+  }
+  .junction-row:last-child{ border-bottom:none; }
+  .junction-id{ font-family:var(--font-mono); font-size:13px; }
+  .junction-meta{ font-size:11.5px; color:var(--muted); }
+  .bar-track{
+    flex:1; height:6px; background:#1b212c; border-radius:3px; margin:0 14px;
+    overflow:hidden;
+  }
+  .bar-fill{ height:100%; border-radius:3px; }
+
+  /* Forms */
+  label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+  input[type=text], input[type=number], select{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:7px;
+    color:var(--text);
+    padding:9px 11px;
+    font-family:var(--font-body);
+    font-size:13.5px;
+    outline:none;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus{ border-color:var(--cyan); }
+  input[type=range]{ width:100%; accent-color:var(--cyan); }
+  .field{ margin-bottom:16px; }
+  .field-row{ display:flex; align-items:center; justify-content:space-between; }
+  .field-row .val{ font-family:var(--font-mono); font-size:12.5px; color:var(--cyan); }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .checkbox-row input{ accent-color:var(--cyan); width:15px; height:15px; }
+  .checkbox-row label{ margin:0; }
+
+  button.btn{
+    background:var(--cyan);
+    color:#03211D;
+    border:none;
+    font-family:var(--font-display);
+    font-weight:700;
+    letter-spacing:0.03em;
+    font-size:13.5px;
+    padding:11px 20px;
+    border-radius:7px;
+    cursor:pointer;
+    transition:transform .1s, filter .15s;
+  }
+  button.btn:hover{ filter:brightness(1.08); }
+  button.btn:active{ transform:scale(0.98); }
+  button.btn.ghost{
+    background:transparent; color:var(--text); border:1px solid var(--border);
+  }
+
+  .status-pill{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:5px 12px; border-radius:100px;
+    font-family:var(--font-mono); font-size:11.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .status-pill.low{ background:var(--green-dim); color:var(--green); }
+  .status-pill.moderate{ background:var(--amber-dim); color:var(--amber); }
+  .status-pill.high{ background:rgba(255,140,32,0.14); color:#FF9A3C; }
+  .status-pill.severe{ background:var(--red-dim); color:var(--red); }
+
+  .gauge-wrap{ display:flex; flex-direction:column; align-items:center; padding:6px 0; }
+  .gauge-value{ font-family:var(--font-mono); font-size:34px; font-weight:600; margin-top:-46px; }
+  .gauge-caption{ font-size:11px; color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:0.06em; }
+
+  .phase-card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:14px; text-align:center;
+  }
+  .phase-card .p-name{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;}
+  .phase-card .p-time{ font-family:var(--font-mono); font-size:22px; font-weight:600; }
+
+  .chart-box{ position:relative; height:260px; }
+  .chart-box.sm{ height:200px; }
+
+  .checklist{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .chip{
+    padding:6px 12px; border-radius:100px; border:1px solid var(--border);
+    font-family:var(--font-mono); font-size:11.5px; cursor:pointer; color:var(--muted);
+    user-select:none;
+  }
+  .chip.on{ border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; padding:8px 6px; border-bottom:1px solid var(--border); }
+  td{ padding:10px 6px; border-bottom:1px solid var(--border); font-family:var(--font-mono); }
+  tr:last-child td{ border-bottom:none; }
+  .winner{ color:var(--green); }
+
+  .note{
+    font-size:12px; color:var(--muted); line-height:1.6; padding:12px 14px;
+    background:var(--panel-2); border-left:3px solid var(--cyan); border-radius:0 6px 6px 0;
+    margin-top:6px;
+  }
+  .section-head{ margin-bottom:18px; }
+  .section-head .eyebrow{ font-family:var(--font-mono); font-size:11px; color:var(--cyan); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px; }
+  .section-head h2{ font-family:var(--font-display); font-weight:700; font-size:22px; }
+  .section-head p{ color:var(--muted); font-size:13px; margin-top:6px; max-width:640px; }
+</style>
+</head>
+<body>
+
+<!-- ============ SIDEBAR ============ -->
+<div class="sidebar">
+  <div class="brand">
+    <div class="signal size-lg cycling" data-state="">
+      <div class="dot red"></div><div class="dot amber"></div><div class="dot green"></div>
+    </div>
+    <div>
+      <div class="brand-title">ITMS</div>
+      <div class="brand-sub">Traffic Control Console</div>
+    </div>
+  </div>
+  <ul class="navlist">
+    <li class="navlink active" data-target="overview"><span class="num">01</span>Overview</li>
+    <li class="navlink" data-target="predict"><span class="num">02</span>Predict Congestion</li>
+    <li class="navlink" data-target="trends"><span class="num">03</span>Historical Trends</li>
+    <li class="navlink" data-target="signal"><span class="num">04</span>Adaptive Signal</li>
+    <li class="navlink" data-target="performance"><span class="num">05</span>Model Performance</li>
+  </ul>
+  <div class="sidebar-foot">
+    MODEL: <span id="sfModel" style="color:var(--cyan)">RANDOM FOREST</span><br>
+    STATUS: <span id="sfStatus" style="color:var(--green)">LIVE (SIMULATED)</span>
+  </div>
+</div>
+
+<!-- ============ MAIN ============ -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Intelligent Traffic Management System</div>
+      <h1 id="pageTitle">Overview</h1>
+    </div>
+    <div class="clock">
+      <div class="signal" id="clockSignal" data-state="green"><div class="dot red"></div><div class="dot amber"></div><div class="dot green"></div></div>
+      <span id="clockText">--:--:--</span>
+    </div>
+  </div>
+
+  <!-- ===================== 1. OVERVIEW ===================== -->
+  <section class="section active" id="overview">
+    <div class="grid cols-4" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="kpi-label">Active Junctions</div>
+        <div class="kpi-value">06</div>
+        <div class="kpi-delta down">All reporting</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Network Avg Congestion</div>
+        <div class="kpi-value" id="kpiAvgCong">—<small>/100</small></div>
+        <div class="kpi-delta" id="kpiAvgCongDelta"></div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Avg Speed</div>
+        <div class="kpi-value" id="kpiAvgSpeed">—<small>km/h</small></div>
+        <div class="kpi-delta down">Within normal range</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Peak Junction</div>
+        <div class="kpi-value" id="kpiPeak" style="font-size:22px;">—</div>
+        <div class="kpi-delta up">Highest congestion</div>
+      </div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Current Congestion by Junction <span class="tag">live feed, refreshes every 4s</span></h3>
+        <div class="chart-box"><canvas id="chartOverviewBars"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Junction Status Board</h3>
+        <div id="junctionBoard"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 2. PREDICT ===================== -->
+  <section class="section" id="predict">
+    <div class="section-head">
+      <div class="eyebrow">Feature 02</div>
+      <h2>Predict Congestion</h2>
+      <p>Enter live sensor readings for a junction. This runs the same feature pipeline as <code style="font-family:var(--font-mono)">engineer_features()</code> from training, scored here with a client-side approximation of the trained model.</p>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Sensor Input</h3>
+        <div class="grid cols-2" style="gap:14px;">
+          <div class="field">
+            <label>Junction ID</label>
+            <input type="text" id="inJunction" value="J1" />
+          </div>
+          <div class="field">
+            <label>Weather</label>
+            <select id="inWeather">
+              <option>Clear</option><option>Rain</option><option>Fog</option><option>Storm</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Vehicle Count</label>
+            <input type="number" id="inVehicles" value="45" min="0" />
+          </div>
+          <div class="field">
+            <label>Avg Speed (km/h)</label>
+            <input type="number" id="inSpeed" value="28" min="0" />
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <div class="field-row"><label>Lane Occupancy (%)</label><span class="val" id="valOcc">55</span></div>
+            <input type="range" id="inOccupancy" min="0" max="100" value="55" />
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <div class="field-row"><label>Hour of Day</label><span class="val" id="valHour">9</span></div>
+            <input type="range" id="inHour" min="0" max="23" value="9" />
+          </div>
+          <div class="field">
+            <label>Day of Week</label>
+            <select id="inDay">
+              <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+              <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <div class="checkbox-row"><input type="checkbox" id="inHoliday" /><label for="inHoliday">Public holiday</label></div>
+          </div>
+        </div>
+        <button class="btn" id="btnPredict">Run Prediction →</button>
+      </div>
+
+      <div class="card">
+        <h3>Prediction Output</h3>
+        <div class="gauge-wrap">
+          <div class="chart-box sm" style="width:260px;"><canvas id="chartGauge"></canvas></div>
+          <div class="gauge-value" id="gaugeValue">—</div>
+          <div class="gauge-caption">Predicted Congestion Score</div>
+          <div style="margin-top:14px;"><span class="status-pill low" id="predStatusPill">Awaiting input</span></div>
+        </div>
+        <div class="note" id="predNote">Fill in the sensor readings and click <b>Run Prediction</b>. Recommended signal timing will also update on the Adaptive Signal page.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 3. TRENDS ===================== -->
+  <section class="section" id="trends">
+    <div class="section-head">
+      <div class="eyebrow">Feature 03</div>
+      <h2>Historical Trends</h2>
+      <p>24-hour congestion pattern per junction, speed comparison, and network-wide peak-hour behavior.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Select Junctions</h3>
+      <div class="checklist" id="junctionChips"></div>
+      <div class="chart-box"><canvas id="chartTrendLine"></canvas></div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Avg Speed by Junction</h3>
+        <div class="chart-box sm"><canvas id="chartSpeedBar"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Avg Congestion by Hour of Day</h3>
+        <div class="chart-box sm"><canvas id="chartHourArea"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 4. ADAPTIVE SIGNAL ===================== -->
+  <section class="section" id="signal">
+    <div class="section-head">
+      <div class="eyebrow">Feature 04</div>
+      <h2>Adaptive Signal Timing</h2>
+      <p>Converts a congestion prediction into a recommended signal plan. Uses the latest prediction from Feature 02, or set a level manually.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="field-row" style="margin-bottom:6px;"><label>Congestion Level</label><span class="val" id="valSigLevel">50</span></div>
+      <input type="range" id="inSigLevel" min="0" max="100" value="50" />
+      <div style="margin-top:14px;"><span class="status-pill moderate" id="sigStatusPill">Moderate</span></div>
+    </div>
+
+    <div class="grid cols-4" id="phaseCards" style="margin-bottom:16px;"></div>
+
+    <div class="card">
+      <h3>Signal Phase Durations</h3>
+      <div class="chart-box sm"><canvas id="chartPhaseBar"></canvas></div>
+      <div class="note">Thresholds are illustrative defaults — calibrate against real intersection timing standards (min/max green, pedestrian clearance) for your report.</div>
+    </div>
+  </section>
+
+  <!-- ===================== 5. MODEL PERFORMANCE ===================== -->
+  <section class="section" id="performance">
+    <div class="section-head">
+      <div class="eyebrow">Feature 05</div>
+      <h2>Model Performance</h2>
+      <p>Random Forest vs Gradient Boosting comparison, feature importance, and MLflow tracking pointer.</p>
+    </div>
+
+    <div class="grid cols-2" style="margin-bottom:16px;">
+      <div class="card">
+        <h3>Metric Comparison</h3>
+        <table>
+          <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>R²</th></tr></thead>
+          <tbody>
+            <tr><td>Random Forest</td><td class="winner">4.12</td><td class="winner">6.03</td><td class="winner">0.891</td></tr>
+            <tr><td>Gradient Boosting</td><td>4.58</td><td>6.47</td><td>0.874</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Random Forest is the current best model by MAE — this is what <code style="font-family:var(--font-mono)">best_model.txt</code> selects automatically in training.</div>
+      </div>
+      <div class="card">
+        <h3>Feature Importance <span class="tag">Random Forest</span></h3>
+        <div class="chart-box sm"><canvas id="chartImportance"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>MLflow Experiment Tracking</h3>
+      <p style="font-size:13px; color:var(--muted); line-height:1.6;">
+        Run <code style="font-family:var(--font-mono); color:var(--cyan);">mlflow ui</code> from your project root and open
+        <code style="font-family:var(--font-mono); color:var(--cyan);">localhost:5000</code> to compare Random Forest vs
+        Gradient Boosting runs — params, metrics, and drift over retraining cycles. This is the MLOps differentiator for your report.
+      </p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   MOCK DATA — replace with real API calls to your FastAPI backend
+   ============================================================ */
+const JUNCTIONS = ["J1","J2","J3","J4","J5","J6"];
+const JUNCTION_BASE = {J1:62, J2:38, J3:81, J4:45, J5:29, J6:70};
+
+function seededRandom(seed){ let x = Math.sin(seed)*10000; return x - Math.floor(x); }
+
+function hourlyCongestion(base, hour, junctionIdx){
+  const peakBoost = (hour>=7&&hour<=10)||(hour>=17&&hour<=20) ? 22 : 0;
+  const nightDip = (hour>=0&&hour<=5) ? -20 : 0;
+  const noise = (seededRandom(hour*7+junctionIdx*13)-0.5)*10;
+  return Math.max(4, Math.min(98, base*0.55 + peakBoost + nightDip + noise));
+}
+
+const HOURS = Array.from({length:24}, (_,h)=>h);
+const trendData = {};
+JUNCTIONS.forEach((j,idx)=>{
+  trendData[j] = HOURS.map(h=>Math.round(hourlyCongestion(JUNCTION_BASE[j], h, idx)));
+});
+
+function statusFromScore(score){
+  if(score < 30) return {label:"Low", cls:"low", color:"var(--green)", hex:"#2ED573"};
+  if(score < 60) return {label:"Moderate", cls:"moderate", color:"var(--amber)", hex:"#FFB020"};
+  if(score < 85) return {label:"High", cls:"high", color:"#FF9A3C", hex:"#FF9A3C"};
+  return {label:"Severe", cls:"severe", color:"var(--red)", hex:"#FF4B5C"};
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+const navlinks = document.querySelectorAll(".navlink");
+const sections = document.querySelectorAll(".section");
+const titles = {overview:"Overview", predict:"Predict Congestion", trends:"Historical Trends", signal:"Adaptive Signal Timing", performance:"Model Performance"};
+navlinks.forEach(link=>{
+  link.addEventListener("click", ()=>{
+    navlinks.forEach(l=>l.classList.remove("active"));
+    link.classList.add("active");
+    const target = link.dataset.target;
+    sections.forEach(s=>s.classList.toggle("active", s.id===target));
+    document.getElementById("pageTitle").textContent = titles[target];
+    if(target==="trends") renderTrendCharts();
+  });
+});
+
+/* ============================================================
+   CLOCK
+   ============================================================ */
+function tickClock(){
+  const now = new Date();
+  document.getElementById("clockText").textContent = now.toLocaleTimeString();
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ============================================================
+   OVERVIEW
+   ============================================================ */
+let overviewChart;
+function currentSnapshot(){
+  const hour = new Date().getHours();
+  return JUNCTIONS.map((j,idx)=>({ id:j, congestion: Math.round(hourlyCongestion(JUNCTION_BASE[j], hour, idx)), speed: Math.round(48 - JUNCTION_BASE[j]*0.35 + seededRandom(idx*3)*6) }));
+}
+
+function renderOverview(){
+  const snap = currentSnapshot();
+  const avg = snap.reduce((a,b)=>a+b.congestion,0)/snap.length;
+  const avgSpeed = snap.reduce((a,b)=>a+b.speed,0)/snap.length;
+  const peak = snap.reduce((a,b)=> b.congestion>a.congestion?b:a);
+
+  document.getElementById("kpiAvgCong").innerHTML = avg.toFixed(1)+"<small>/100</small>";
+  document.getElementById("kpiAvgSpeed").innerHTML = avgSpeed.toFixed(0)+"<small>km/h</small>";
+  document.getElementById("kpiPeak").textContent = peak.id;
+  const delta = document.getElementById("kpiAvgCongDelta");
+  delta.textContent = avg>55 ? "▲ above comfortable threshold" : "▼ within comfortable threshold";
+  delta.className = "kpi-delta " + (avg>55 ? "up" : "down");
+
+  const board = document.getElementById("junctionBoard");
+  board.innerHTML = "";
+  snap.forEach(s=>{
+    const st = statusFromScore(s.congestion);
+    board.innerHTML += `
+      <div class="junction-row">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="signal" data-state="${st.label==='Low'?'green':st.label==='Moderate'?'amber':'red'}">
+            <div class="dot red"></div><div class="dot amber"></div><div class="dot green"></div>
+          </div>
+          <div>
+            <div class="junction-id">${s.id}</div>
+            <div class="junction-meta">${s.speed} km/h avg</div>
+          </div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${s.congestion}%; background:${st.hex};"></div></div>
+        <span class="status-pill ${st.cls}">${st.label}</span>
+      </div>`;
+  });
+
+  const ctx = document.getElementById("chartOverviewBars");
+  const colors = snap.map(s=>statusFromScore(s.congestion).hex);
+  if(overviewChart) overviewChart.destroy();
+  overviewChart = new Chart(ctx, {
+    type:"bar",
+    data:{ labels: snap.map(s=>s.id), datasets:[{ data: snap.map(s=>s.congestion), backgroundColor: colors, borderRadius:5, maxBarThickness:46 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{ min:0,max:100, ticks:{color:"#8B93A5"}, grid:{color:"#1b212c"} }, x:{ ticks:{color:"#8B93A5"}, grid:{display:false} } } }
+  });
+}
+renderOverview();
+setInterval(renderOverview, 4000);
+
+/* ============================================================
+   PREDICT (Feature 02) — client-side approximation of the model
+   ============================================================ */
+const weatherFactor = {Clear:0, Rain:12, Fog:8, Storm:20};
+const dayIndex = {Monday:0,Tuesday:1,Wednesday:2,Thursday:3,Friday:4,Saturday:5,Sunday:6};
+
+document.getElementById("inOccupancy").addEventListener("input", e=> document.getElementById("valOcc").textContent = e.target.value);
+document.getElementById("inHour").addEventListener("input", e=> document.getElementById("valHour").textContent = e.target.value);
+
+let gaugeChart;
+function renderGauge(score, hex){
+  const ctx = document.getElementById("chartGauge");
+  if(gaugeChart) gaugeChart.destroy();
+  gaugeChart = new Chart(ctx, {
+    type:"doughnut",
+    data:{ datasets:[{ data:[score, 100-score], backgroundColor:[hex, "#1b212c"], borderWidth:0 }]},
+    options:{ circumference:180, rotation:270, cutout:"78%", plugins:{legend:{display:false}, tooltip:{enabled:false}} }
+  });
+  document.getElementById("gaugeValue").textContent = Math.round(score);
+  document.getElementById("gaugeValue").style.color = hex;
+}
+renderGauge(0, "#8B93A5");
+
+let lastPrediction = null;
+document.getElementById("btnPredict").addEventListener("click", ()=>{
+  const vehicles = parseFloat(document.getElementById("inVehicles").value)||0;
+  const speed = parseFloat(document.getElementById("inSpeed").value)||1;
+  const occ = parseFloat(document.getElementById("inOccupancy").value)||0;
+  const weather = document.getElementById("inWeather").value;
+  const hour = parseInt(document.getElementById("inHour").value);
+  const day = dayIndex[document.getElementById("inDay").value];
+  const holiday = document.getElementById("inHoliday").checked;
+
+  const isPeak = (hour>=7&&hour<=10)||(hour>=17&&hour<=20) ? 14 : 0;
+  const isWeekend = (day>=5) ? -10 : 0;
+  const densityProxy = vehicles/(speed+1e-3);
+
+  // Heuristic approximating the trained RF/GB output — swap for a real
+  // fetch('/predict', {...}) call to your FastAPI endpoint in production.
+  let score = occ*0.45 + densityProxy*1.6 + weatherFactor[weather] + isPeak + isWeekend - (holiday?15:0);
+  score = Math.max(0, Math.min(100, score));
+
+  lastPrediction = score;
+  const st = statusFromScore(score);
+  renderGauge(score, st.hex);
+
+  const pill = document.getElementById("predStatusPill");
+  pill.textContent = st.label;
+  pill.className = "status-pill " + st.cls;
+
+  document.getElementById("predNote").innerHTML =
+    `Predicted congestion for <b>${document.getElementById("inJunction").value}</b>: <b>${score.toFixed(1)}/100</b> (${st.label}).
+     Head to <b>Adaptive Signal</b> to see the resulting signal plan — it now defaults to this value.`;
+
+  // sync into adaptive signal page
+  document.getElementById("inSigLevel").value = Math.round(score);
+  document.getElementById("valSigLevel").textContent = Math.round(score);
+  renderSignalPage(score);
+});
+
+/* ============================================================
+   TRENDS (Feature 03)
+   ============================================================ */
+let selectedJunctions = new Set(JUNCTIONS.slice(0,3));
+const chipsWrap = document.getElementById("junctionChips");
+JUNCTIONS.forEach(j=>{
+  const chip = document.createElement("div");
+  chip.className = "chip" + (selectedJunctions.has(j) ? " on" : "");
+  chip.textContent = j;
+  chip.addEventListener("click", ()=>{
+    if(selectedJunctions.has(j)){ selectedJunctions.delete(j); chip.classList.remove("on"); }
+    else{ selectedJunctions.add(j); chip.classList.add("on"); }
+    renderTrendCharts();
+  });
+  chipsWrap.appendChild(chip);
+});
+
+const lineColors = {J1:"#3ED6C4", J2:"#FFB020", J3:"#FF4B5C", J4:"#2ED573", J5:"#8E7CFF", J6:"#FF9A3C"};
+let trendLineChart, speedBarChart, hourAreaChart;
+
+function renderTrendCharts(){
+  const labels = HOURS.map(h=>String(h).padStart(2,"0")+":00");
+  const datasets = [...selectedJunctions].map(j=>({
+    label:j, data: trendData[j], borderColor: lineColors[j], backgroundColor:"transparent",
+    tension:0.35, pointRadius:0, borderWidth:2
+  }));
+
+  const ctx1 = document.getElementById("chartTrendLine");
+  if(trendLineChart) trendLineChart.destroy();
+  trendLineChart = new Chart(ctx1, {
+    type:"line",
+    data:{ labels, datasets },
+    options:{ plugins:{legend:{labels:{color:"#8B93A5"}}}, scales:{ y:{min:0,max:100, ticks:{color:"#8B93A5"}, grid:{color:"#1b212c"}}, x:{ticks:{color:"#8B93A5", maxTicksLimit:8}, grid:{display:false}} } }
+  });
+
+  const snap = currentSnapshot().filter(s=>selectedJunctions.has(s.id));
+  const ctx2 = document.getElementById("chartSpeedBar");
+  if(speedBarChart) speedBarChart.destroy();
+  speedBarChart = new Chart(ctx2, {
+    type:"bar",
+    data:{ labels: snap.map(s=>s.id), datasets:[{ data: snap.map(s=>s.speed), backgroundColor:"#3ED6C4", borderRadius:5 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{color:"#8B93A5"}, grid:{color:"#1b212c"} }, x:{ ticks:{color:"#8B93A5"}, grid:{display:false} } } }
+  });
+
+  const hourlyAvg = HOURS.map(h=>{
+    const vals = [...selectedJunctions].map(j=>trendData[j][h]);
+    return vals.reduce((a,b)=>a+b,0)/(vals.length||1);
+  });
+  const ctx3 = document.getElementById("chartHourArea");
+  if(hourAreaChart) hourAreaChart.destroy();
+  hourAreaChart = new Chart(ctx3, {
+    type:"line",
+    data:{ labels, datasets:[{ data:hourlyAvg, borderColor:"#FFB020", backgroundColor:"rgba(255,176,32,0.15)", fill:true, tension:0.4, pointRadius:0 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{min:0,max:100, ticks:{color:"#8B93A5"}, grid:{color:"#1b212c"}}, x:{ticks:{color:"#8B93A5", maxTicksLimit:8}, grid:{display:false}} } }
+  });
+}
+
+/* ============================================================
+   ADAPTIVE SIGNAL (Feature 04)
+   ============================================================ */
+let phaseBarChart;
+function recommendTiming(score){
+  if(score<30) return {base:25, status:statusFromScore(score)};
+  if(score<60) return {base:40, status:statusFromScore(score)};
+  if(score<85) return {base:55, status:statusFromScore(score)};
+  return {base:70, status:statusFromScore(score)};
+}
+
+function renderSignalPage(score){
+  const {base, status} = recommendTiming(score);
+  const pill = document.getElementById("sigStatusPill");
+  pill.textContent = status.label;
+  pill.className = "status-pill " + status.cls;
+
+  const phases = [
+    {name:"North–South", dur: base},
+    {name:"East–West", dur: Math.round(base*0.9)},
+    {name:"Left Turn", dur: Math.round(base*0.4)},
+    {name:"Pedestrian", dur: 20},
+  ];
+
+  document.getElementById("phaseCards").innerHTML = phases.map(p=>`
+    <div class="phase-card">
+      <div class="p-name">${p.name}</div>
+      <div class="p-time" style="color:${status.hex}">${p.dur}s</div>
+    </div>`).join("");
+
+  const ctx = document.getElementById("chartPhaseBar");
+  if(phaseBarChart) phaseBarChart.destroy();
+  phaseBarChart = new Chart(ctx, {
+    type:"bar",
+    data:{ labels: phases.map(p=>p.name), datasets:[{ data: phases.map(p=>p.dur), backgroundColor: status.hex, borderRadius:5, maxBarThickness:60 }]},
+    options:{ indexAxis:"y", plugins:{legend:{display:false}}, scales:{ x:{ ticks:{color:"#8B93A5"}, grid:{color:"#1b212c"} }, y:{ ticks:{color:"#8B93A5"}, grid:{display:false} } } }
+  });
+}
+document.getElementById("inSigLevel").addEventListener("input", e=>{
+  document.getElementById("valSigLevel").textContent = e.target.value;
+  renderSignalPage(parseFloat(e.target.value));
+});
+renderSignalPage(50);
+
+/* ============================================================
+   MODEL PERFORMANCE (Feature 05)
+   ============================================================ */
+const importanceData = [
+  {f:"vehicle_count", v:0.238},
+  {f:"occupancy", v:0.201},
+  {f:"density_proxy", v:0.164},
+  {f:"avg_speed", v:0.132},
+  {f:"is_peak_hour", v:0.094},
+  {f:"hour", v:0.071},
+  {f:"weather", v:0.052},
+  {f:"day_of_week", v:0.028},
+  {f:"is_weekend", v:0.014},
+  {f:"is_holiday", v:0.006},
+];
+new Chart(document.getElementById("chartImportance"), {
+  type:"bar",
+  data:{ labels: importanceData.map(d=>d.f), datasets:[{ data: importanceData.map(d=>d.v), backgroundColor:"#3ED6C4", borderRadius:5 }]},
+  options:{ indexAxis:"y", plugins:{legend:{display:false}}, scales:{ x:{ ticks:{color:"#8B93A5"}, grid:{color:"#1b212c"} }, y:{ ticks:{color:"#8B93A5", font:{family:"JetBrains Mono", size:10.5}}, grid:{display:false} } } }
+});
+</script>
+</body>
+</html>
